@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
   Linking,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -126,7 +127,7 @@ const ItemDetails = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <SafeAreaView style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <LinearGradient
             colors={['#2d2d2d', '#1a1a1a']}
@@ -141,7 +142,12 @@ const ItemDetails = ({
               <View style={styles.placeholder} />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Scrollable Content */}
+            <ScrollView 
+              style={styles.scrollContent}
+              contentContainerStyle={styles.scrollContainer}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Item Overview */}
               <View style={styles.overviewCard}>
                 <View style={styles.itemIconLarge}>
@@ -234,7 +240,7 @@ const ItemDetails = ({
               </View>
             </ScrollView>
 
-            {/* Action Buttons */}
+            {/* Fixed Action Buttons */}
             <View style={styles.actionButtons}>
               <TouchableOpacity 
                 style={styles.editButton} 
@@ -244,7 +250,7 @@ const ItemDetails = ({
                   colors={[COLORS.accent, '#4dd100']}
                   style={styles.buttonGradient}
                 >
-                  <Ionicons name="pencil-outline" size={20} color="#ffffff" />
+                  <Ionicons name="pencil-outline" size={20} color={COLORS.primary} />
                   <Text style={styles.buttonText}>Edit Item</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -261,7 +267,7 @@ const ItemDetails = ({
             </View>
           </LinearGradient>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -300,6 +306,12 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 32,
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollContainer: {
+    paddingBottom: 20,
   },
   overviewCard: {
     flexDirection: 'row',
@@ -405,8 +417,11 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     paddingHorizontal: 24,
-    paddingVertical: 24,
+    paddingVertical: 20,
+    paddingBottom: 34, // Extra padding for safe area
     gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   editButton: {
     flex: 1,
@@ -420,7 +435,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   buttonText: {
-    color: '#ffffff',
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,

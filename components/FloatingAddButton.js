@@ -16,7 +16,7 @@ const FloatingAddButton = ({ onPress, disabled }) => {
         colors={disabled ? ['#666', '#444'] : [COLORS.accent, '#4dd100']}
         style={styles.gradient}
       >
-        <Ionicons name="add" size={28} color="#ffffff" />
+        <Ionicons name="add" size={28} color={COLORS.primary} />
       </LinearGradient>
     </TouchableOpacity>
   );

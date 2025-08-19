@@ -39,18 +39,37 @@ const ItemCard = ({ item, onPress, currentLocation }) => {
     }
   };
 
+  // Determine card style based on away status
+  const getCardStyle = () => {
+    if (item.isAway) {
+      return {
+        gradient: ['rgba(255, 107, 107, 0.15)', 'rgba(255, 107, 107, 0.05)'],
+        borderColor: 'rgba(255, 107, 107, 0.4)',
+      };
+    }
+    return {
+      gradient: ['rgba(104, 247, 11, 0.1)', 'rgba(104, 247, 11, 0.05)'],
+      borderColor: COLORS.glassBorder,
+    };
+  };
+
+  const cardStyle = getCardStyle();
+
   return (
     <TouchableOpacity style={styles.itemCard} onPress={onPress} activeOpacity={0.7}>
       <LinearGradient
-        colors={['rgba(104, 247, 11, 0.1)', 'rgba(104, 247, 11, 0.05)']}
-        style={styles.itemGradient}
+        colors={cardStyle.gradient}
+        style={[styles.itemGradient, { borderColor: cardStyle.borderColor }]}
       >
         <View style={styles.itemHeader}>
-          <View style={styles.itemIconContainer}>
+          <View style={[
+            styles.itemIconContainer,
+            item.isAway && styles.itemIconContainerAway
+          ]}>
             <Ionicons 
               name={getIconName(item.icon)} 
               size={24} 
-              color={COLORS.accent} 
+              color={item.isAway ? COLORS.warning : COLORS.accent} 
             />
           </View>
           <View style={styles.itemInfo}>
@@ -65,7 +84,12 @@ const ItemCard = ({ item, onPress, currentLocation }) => {
                 <Ionicons name="warning" size={16} color={COLORS.warning} />
               </View>
             )}
-            <Text style={styles.distanceText}>{getDistanceText()}</Text>
+            <Text style={[
+              styles.distanceText,
+              item.isAway && styles.distanceTextAway
+            ]}>
+              {getDistanceText()}
+            </Text>
             <Text style={styles.distanceTextSub}>away</Text>
           </View>
         </View>
@@ -83,7 +107,6 @@ const styles = StyleSheet.create({
   itemGradient: {
     backgroundColor: COLORS.glass,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
     borderRadius: 20,
     padding: 20,
   },
@@ -99,6 +122,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(104, 247, 11, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  itemIconContainerAway: {
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
   },
   itemInfo: {
     flex: 1,
@@ -123,6 +149,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: COLORS.accent,
+  },
+  distanceTextAway: {
+    color: COLORS.warning,
   },
   distanceTextSub: {
     fontSize: 14,

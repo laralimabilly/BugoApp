@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Alert,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -59,6 +60,22 @@ const ItemModal = ({ visible, onClose, onSave, editingItem }) => {
     setAlertDistance('50');
   };
 
+  const renderIcon = ({ item }) => (
+    <TouchableOpacity
+      style={[
+        styles.iconButton,
+        selectedIcon === item.id && styles.iconButtonActive
+      ]}
+      onPress={() => setSelectedIcon(item.id)}
+    >
+      <Ionicons
+        name={item.name}
+        size={24}
+        color={selectedIcon === item.id ? COLORS.primary : COLORS.textSecondary}
+      />
+    </TouchableOpacity>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -98,27 +115,18 @@ const ItemModal = ({ visible, onClose, onSave, editingItem }) => {
                 </View>
               </View>
 
-              {/* Icon Selection */}
+              {/* Icon Selection - Horizontal Carousel */}
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Choose an Icon</Text>
-                <View style={styles.iconGrid}>
-                  {ITEM_ICONS.map((icon) => (
-                    <TouchableOpacity
-                      key={icon.id}
-                      style={[
-                        styles.iconButton,
-                        selectedIcon === icon.id && styles.iconButtonActive
-                      ]}
-                      onPress={() => setSelectedIcon(icon.id)}
-                    >
-                      <Ionicons
-                        name={icon.name}
-                        size={24}
-                        color={selectedIcon === icon.id ? '#ffffff' : COLORS.textSecondary}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <FlatList
+                  data={ITEM_ICONS}
+                  renderItem={renderIcon}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.iconCarousel}
+                  ItemSeparatorComponent={() => <View style={styles.iconSeparator} />}
+                />
               </View>
 
               {/* Alert Distance */}
@@ -259,25 +267,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
   },
-  iconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  iconCarousel: {
+    paddingHorizontal: 4,
   },
   iconButton: {
-    width: (width - 72) / 5 - 8,
-    height: 50,
+    width: 60,
+    height: 60,
     backgroundColor: COLORS.glass,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   iconButtonActive: {
     backgroundColor: COLORS.accent,
     borderColor: COLORS.accent,
+  },
+  iconSeparator: {
+    width: 12,
   },
   distanceButtons: {
     flexDirection: 'row',
@@ -304,7 +312,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   distanceButtonTextActive: {
-    color: '#ffffff',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   previewCard: {
@@ -367,7 +375,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButtonText: {
-    color: '#ffffff',
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: '600',
   },
