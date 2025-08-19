@@ -1,40 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
   Alert,
   StatusBar,
   Dimensions,
-  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+
+import Header from './components/Header';
+import ItemList from './components/ItemList';
+import FloatingAddButton from './components/FloatingAddButton';
+import ItemModal from './components/ItemModal';
+import ItemDetails from './components/ItemDetails';
+import { COLORS } from './constants/colors';
 
 const { width, height } = Dimensions.get('window');
 
-const COLORS = {
-  primary: '#2d2d2d',
-  accent: '#68f70b',
-  glass: 'rgba(45, 45, 45, 0.8)',
-  glassBorder: 'rgba(104, 247, 11, 0.3)',
-  text: '#ffffff',
-  textSecondary: '#b0b0b0',
-  warning: '#ff6b6b',
-  success: '#51cf66',
-};
-
-const DontForgetApp = () => {
+const BugoApp = () => {
   const [items, setItems] = useState([]);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemDistance, setNewItemDistance] = useState('50');
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isLocationEnabled, setIsLocationEnabled] = useState(false);
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [showItemDetails, setShowItemDetails] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
   const watchId = useRef(null);
 
   // Request location permissions
@@ -70,22 +62,29 @@ const DontForgetApp = () => {
       };
       setCurrentLocation(newLocation);
       
-      // Watch position changes
-      await Location.watchPositionAsync(
+      // Check alerts for initial position
+      checkProximityAlerts(newLocation);
+      
+      // Watch position changes with more frequent updates
+      const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
-          timeInterval: 30000,
-          distanceInterval: 5,
+          timeInterval: 10000, // Check every 10 seconds
+          distanceInterval: 10, // Update when moved 10 meters
         },
-        (location) => {
+        async (location) => {
           const newLoc = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
           };
+          console.log('Location updated:', newLoc);
           setCurrentLocation(newLoc);
-          checkProximityAlerts(newLoc);
+          await checkProximityAlerts(newLoc);
         }
       );
+      
+      // Store subscription for cleanup
+      watchId.current = subscription;
     } catch (error) {
       console.error('Location error:', error);
       Alert.alert('Location Error', 'Unable to get your location.');
@@ -109,11 +108,19 @@ const DontForgetApp = () => {
   };
 
   // Check proximity alerts
-  const checkProximityAlerts = (currentLoc) => {
-    if (!currentLoc) return;
+  const checkProximityAlerts = async (currentLoc) => {
+    if (!currentLoc || items.length === 0) return;
 
-    items.forEach((item) => {
-      if (!item.alertDistance || !item.location) return;
+    console.log('Checking proximity for', items.length, 'items');
+
+    const itemsToAlert = [];
+    const itemsToReturn = [];
+
+    for (const item of items) {
+      if (!item.alertDistance || !item.location) {
+        console.log(`Skipping item ${item.name} - missing alertDistance or location`);
+        continue;
+      }
 
       const distance = calculateDistance(
         currentLoc.latitude,
@@ -122,26 +129,59 @@ const DontForgetApp = () => {
         item.location.longitude
       );
 
+      console.log(`Item: ${item.name}, Distance: ${Math.round(distance)}m, Threshold: ${item.alertDistance}m, IsAway: ${item.isAway}`);
+
+      // Collect items that need alerts (moved beyond threshold and weren't already away)
       if (distance > item.alertDistance && !item.isAway) {
-        Alert.alert(
-          '⚠️ Don\'t Forget!',
-          `You're ${Math.round(distance)}m away from your ${item.name}!`,
-          [{ text: 'OK', style: 'default' }]
-        );
-        updateItemAwayStatus(item.id, true);
-      } else if (distance <= item.alertDistance && item.isAway) {
-        updateItemAwayStatus(item.id, false);
+        console.log(`🚨 Adding ${item.name} to alert list - distance ${Math.round(distance)}m > threshold ${item.alertDistance}m`);
+        itemsToAlert.push({
+          ...item,
+          currentDistance: Math.round(distance)
+        });
+      } 
+      // Collect items that returned within threshold
+      else if (distance <= item.alertDistance && item.isAway) {
+        console.log(`✅ User returned within range for ${item.name}`);
+        itemsToReturn.push(item);
       }
-    });
+    }
+
+    // Show single alert for all items that are now beyond threshold
+    if (itemsToAlert.length > 0) {
+      let alertTitle, alertMessage;
+      
+      if (itemsToAlert.length === 1) {
+        const item = itemsToAlert[0];
+        alertTitle = '⚠️ Don\'t Forget!';
+        alertMessage = `You're ${item.currentDistance}m away from your ${item.name}!`;
+      } else {
+        alertTitle = `⚠️ Don't Forget ${itemsToAlert.length} Items!`;
+        alertMessage = itemsToAlert
+          .map(item => `• ${item.name} (${item.currentDistance}m away)`)
+          .join('\n');
+      }
+
+      Alert.alert(alertTitle, alertMessage, [{ text: 'OK', style: 'default' }]);
+
+      // Update away status for all alerted items
+      for (const item of itemsToAlert) {
+        await updateItemAwayStatus(item.id, true);
+      }
+    }
+
+    // Update return status for items that came back within range
+    for (const item of itemsToReturn) {
+      await updateItemAwayStatus(item.id, false);
+    }
   };
 
   // Update item away status
-  const updateItemAwayStatus = (itemId, isAway) => {
-    setItems(prevItems => 
-      prevItems.map(item => 
-        item.id === itemId ? { ...item, isAway } : item
-      )
+  const updateItemAwayStatus = async (itemId, isAway) => {
+    const updatedItems = items.map(item => 
+      item.id === itemId ? { ...item, isAway } : item
     );
+    setItems(updatedItems);
+    await saveItems(updatedItems); // Persist the away status
   };
 
   // Load items from storage
@@ -165,61 +205,63 @@ const DontForgetApp = () => {
     }
   };
 
-  // Add new item
-  const addItem = () => {
-    if (!newItemName.trim()) {
-      Alert.alert('Error', 'Please enter an item name.');
-      return;
-    }
-
+  // Add or update item
+  const saveItem = (itemData) => {
     if (!currentLocation) {
       Alert.alert('Error', 'Location not available. Please wait or check permissions.');
       return;
     }
 
-    const newItem = {
-      id: Date.now().toString(),
-      name: newItemName.trim(),
-      location: currentLocation,
-      alertDistance: parseInt(newItemDistance) || 50,
-      createdAt: new Date().toISOString(),
-      isAway: false,
-    };
+    let updatedItems;
+    
+    if (editingItem) {
+      // Update existing item
+      updatedItems = items.map(item =>
+        item.id === editingItem.id
+          ? { ...item, ...itemData }
+          : item
+      );
+    } else {
+      // Add new item
+      const newItem = {
+        id: Date.now().toString(),
+        ...itemData,
+        location: currentLocation,
+        createdAt: new Date().toISOString(),
+        isAway: false,
+      };
+      updatedItems = [...items, newItem];
+    }
 
-    const updatedItems = [...items, newItem];
     setItems(updatedItems);
     saveItems(updatedItems);
-    setNewItemName('');
-    setNewItemDistance('50');
+    setShowItemModal(false);
+    setEditingItem(null);
   };
 
   // Delete item
   const deleteItem = (itemId) => {
-    Alert.alert(
-      'Delete Item',
-      'Are you sure you want to delete this item?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            const updatedItems = items.filter(item => item.id !== itemId);
-            setItems(updatedItems);
-            saveItems(updatedItems);
-          },
-        },
-      ]
-    );
-  };
-
-  // Update alert distance
-  const updateAlertDistance = (itemId, newDistance) => {
-    const updatedItems = items.map(item =>
-      item.id === itemId ? { ...item, alertDistance: parseInt(newDistance) || 50 } : item
-    );
+    const updatedItems = items.filter(item => item.id !== itemId);
     setItems(updatedItems);
     saveItems(updatedItems);
+  };
+
+  // Edit item
+  const editItem = (item) => {
+    setEditingItem(item);
+    setShowItemModal(true);
+  };
+
+  // Show item details
+  const showItemDetailsModal = (item) => {
+    setSelectedItem(item);
+    setShowItemDetails(true);
+  };
+
+  // Open add modal
+  const openAddModal = () => {
+    setEditingItem(null);
+    setShowItemModal(true);
   };
 
   useEffect(() => {
@@ -227,63 +269,20 @@ const DontForgetApp = () => {
     initializeLocation();
 
     return () => {
-      // Cleanup if needed
+      // Cleanup location watcher
+      if (watchId.current) {
+        watchId.current.remove();
+      }
     };
   }, []);
 
-  const renderItem = ({ item }) => (
-    <View style={styles.itemCard}>
-      <LinearGradient
-        colors={['rgba(104, 247, 11, 0.1)', 'rgba(104, 247, 11, 0.05)']}
-        style={styles.itemGradient}
-      >
-        <View style={styles.itemHeader}>
-          <View style={styles.itemInfo}>
-            <Text style={styles.itemName}>{item.name}</Text>
-            <Text style={styles.itemDetails}>
-              Alert at {item.alertDistance}m • {new Date(item.createdAt).toLocaleDateString()}
-            </Text>
-          </View>
-          <View style={styles.itemStatus}>
-            {item.isAway && (
-              <View style={styles.awayIndicator}>
-                <Ionicons name="warning" size={16} color={COLORS.warning} />
-              </View>
-            )}
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => deleteItem(item.id)}
-            >
-              <Ionicons name="trash-outline" size={20} color={COLORS.warning} />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        <View style={styles.distanceControl}>
-          <Text style={styles.distanceLabel}>Alert Distance:</Text>
-          <View style={styles.distanceButtons}>
-            {[25, 50, 100, 200].map((distance) => (
-              <TouchableOpacity
-                key={distance}
-                style={[
-                  styles.distanceButton,
-                  item.alertDistance === distance && styles.distanceButtonActive
-                ]}
-                onPress={() => updateAlertDistance(item.id, distance)}
-              >
-                <Text style={[
-                  styles.distanceButtonText,
-                  item.alertDistance === distance && styles.distanceButtonTextActive
-                ]}>
-                  {distance}m
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </LinearGradient>
-    </View>
-  );
+  // Check proximity whenever items or location changes
+  useEffect(() => {
+    if (currentLocation && items.length > 0) {
+      console.log('Items or location changed, checking proximity...');
+      checkProximityAlerts(currentLocation);
+    }
+  }, [items, currentLocation]);
 
   return (
     <View style={styles.container}>
@@ -302,67 +301,42 @@ const DontForgetApp = () => {
         <View style={[styles.bokehCircle, styles.bokeh3]} />
       </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Don't Forget</Text>
-        <Text style={styles.headerSubtitle}>
-          {isLocationEnabled ? `${items.length} items tracked` : 'Location disabled'}
-        </Text>
-      </View>
+      <Header 
+        isLocationEnabled={isLocationEnabled}
+        itemCount={items.length}
+      />
 
-      {/* Add Item Form */}
-      <View style={styles.addForm}>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.textInput}
-            placeholder="What don't you want to forget?"
-            placeholderTextColor={COLORS.textSecondary}
-            value={newItemName}
-            onChangeText={setNewItemName}
-          />
-        </View>
-        
-        <View style={styles.distanceInputContainer}>
-          <Text style={styles.inputLabel}>Alert Distance (meters):</Text>
-          <TextInput
-            style={styles.distanceInput}
-            placeholder="50"
-            placeholderTextColor={COLORS.textSecondary}
-            value={newItemDistance}
-            onChangeText={setNewItemDistance}
-            keyboardType="numeric"
-          />
-        </View>
+      <ItemList
+        items={items}
+        onItemPress={showItemDetailsModal}
+        currentLocation={currentLocation}
+      />
 
-        <TouchableOpacity 
-          style={styles.addButton} 
-          onPress={addItem}
-          disabled={!currentLocation}
-        >
-          <LinearGradient
-            colors={currentLocation ? [COLORS.accent, '#4dd100'] : ['#666', '#444']}
-            style={styles.addButtonGradient}
-          >
-            <Ionicons name="add" size={24} color="#ffffff" />
-            <Text style={styles.addButtonText}>Add Item</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+      <FloatingAddButton 
+        onPress={openAddModal}
+        disabled={!currentLocation}
+      />
 
-      {/* Items List */}
-      <FlatList
-        data={items}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="location-outline" size={64} color={COLORS.textSecondary} />
-            <Text style={styles.emptyText}>No items added yet</Text>
-            <Text style={styles.emptySubtext}>Add your first item to start tracking</Text>
-          </View>
-        }
+      <ItemModal
+        visible={showItemModal}
+        onClose={() => {
+          setShowItemModal(false);
+          setEditingItem(null);
+        }}
+        onSave={saveItem}
+        editingItem={editingItem}
+      />
+
+      <ItemDetails
+        visible={showItemDetails}
+        onClose={() => {
+          setShowItemDetails(false);
+          setSelectedItem(null);
+        }}
+        item={selectedItem}
+        currentLocation={currentLocation}
+        onEdit={editItem}
+        onDelete={deleteItem}
       />
     </View>
   );
@@ -411,168 +385,6 @@ const styles = StyleSheet.create({
     bottom: height * 0.2,
     right: width * 0.3,
   },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-  },
-  addForm: {
-    paddingHorizontal: 24,
-    marginBottom: 24,
-  },
-  inputContainer: {
-    backgroundColor: COLORS.glass,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    marginBottom: 16,
-    backdropFilter: 'blur(10px)',
-  },
-  textInput: {
-    padding: 16,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  distanceInputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-  },
-  distanceInput: {
-    backgroundColor: COLORS.glass,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    padding: 12,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  addButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  addButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  addButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  listContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-  itemCard: {
-    marginBottom: 16,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  itemGradient: {
-    backgroundColor: COLORS.glass,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    borderRadius: 20,
-    padding: 20,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  itemDetails: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  itemStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  awayIndicator: {
-    marginRight: 12,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  distanceControl: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    paddingTop: 16,
-  },
-  distanceLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-  },
-  distanceButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  distanceButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  distanceButtonActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
-  },
-  distanceButtonText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  distanceButtonTextActive: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 20,
-    color: COLORS.textSecondary,
-    marginTop: 16,
-    fontWeight: '500',
-  },
-  emptySubtext: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginTop: 8,
-    opacity: 0.7,
-  },
 });
 
-export default DontForgetApp;
+export default BugoApp;
