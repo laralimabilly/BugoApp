@@ -7,7 +7,7 @@ import { COLORS } from '../constants/colors';
 
 const { width } = Dimensions.get('window');
 
-const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
+const Header = ({ isLocationEnabled, itemCount, items = [] } = props) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(-50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -67,7 +67,7 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
       activeOpacity={0.8}
     >
       <LinearGradient
-        colors={['rgba(104, 247, 11, 0.1)', 'rgba(104, 247, 11, 0.05)']}
+        colors={['rgba(104, 247, 11, 0.2)', 'rgba(104, 247, 11, 0.05)']}
         style={styles.statusCardGradient}
       >
         <View style={styles.statusCardContent}>
@@ -136,6 +136,13 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
             color={COLORS.accent}
           />
           
+          <StatusCard
+            icon="stats-chart-outline"
+            value={itemCount}
+            label="total tracked"
+            color={COLORS.textSecondary}
+          />
+
           {awayItems.length > 0 && (
             <StatusCard
               icon="warning-outline"
@@ -144,13 +151,6 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
               color={COLORS.warning}
             />
           )}
-          
-          <StatusCard
-            icon="stats-chart-outline"
-            value={itemCount}
-            label="total tracked"
-            color={COLORS.textSecondary}
-          />
         </Animated.View>
 
         {/* Status Message */}
@@ -264,13 +264,16 @@ const styles = StyleSheet.create({
   statusContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 20,
     gap: 12,
   },
   statusCard: {
+    flexBasis: '40%',
     flex: 1,
     borderRadius: 16,
     overflow: 'hidden',
+    width: '50%'
   },
   statusCardGradient: {
     padding: 1,

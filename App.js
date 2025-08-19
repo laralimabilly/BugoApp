@@ -205,8 +205,8 @@ const BugoApp = () => {
     }
   };
 
-  // Add or update item
-  const saveItem = (itemData) => {
+  // Add or update item - FIXED VERSION
+  const saveItem = async (itemData) => {
     if (!currentLocation) {
       Alert.alert('Error', 'Location not available. Please wait or check permissions.');
       return;
@@ -234,7 +234,12 @@ const BugoApp = () => {
     }
 
     setItems(updatedItems);
-    saveItems(updatedItems);
+    await saveItems(updatedItems);
+    
+    // Immediately recalculate proximity for all items after saving
+    // This ensures the header updates with correct away status
+    await checkProximityAlerts(currentLocation);
+    
     setShowItemModal(false);
     setEditingItem(null);
   };
@@ -304,6 +309,7 @@ const BugoApp = () => {
       <Header 
         isLocationEnabled={isLocationEnabled}
         itemCount={items.length}
+        items={items}
       />
 
       <ItemList
