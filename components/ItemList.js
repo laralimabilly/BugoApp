@@ -37,6 +37,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 24,
     paddingBottom: 100, // Extra space for floating button
+    paddingTop: 24
   },
   emptyContainer: {
     alignItems: 'center',
