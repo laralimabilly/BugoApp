@@ -7,7 +7,7 @@ import { COLORS } from '../constants/colors';
 
 const { width, height } = Dimensions.get('window');
 
-const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
+const Header = ({ isLocationEnabled, itemCount, items = [], notificationsEnabled = false }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(-50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -20,6 +20,8 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
     let message = '';
     if (!isLocationEnabled) {
       message = 'location_disabled';
+    } else if (!notificationsEnabled) {
+      message = 'notifications_disabled';
     } else if (away.length > 0) {
       message = away.length === 1 
         ? `Don't forget your ${away[0].name}!`
@@ -35,17 +37,7 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
       nearbyItems: nearby, 
       statusMessage: message 
     };
-  }, [items, itemCount, isLocationEnabled]);
-
-  // Log when header data changes (for debugging)
-  useEffect(() => {
-    console.log('Header updated:', {
-      totalItems: itemCount,
-      awayItems: awayItems.length,
-      nearbyItems,
-      isLocationEnabled
-    });
-  }, [itemCount, awayItems.length, nearbyItems, isLocationEnabled]);
+  }, [items, itemCount, isLocationEnabled, notificationsEnabled]);
 
   useEffect(() => {
     // Slide in animation
@@ -63,8 +55,8 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
       }),
     ]).start();
 
-    // Pulse animation for location indicator
-    if (isLocationEnabled) {
+    // Pulse animation for indicators
+    if (isLocationEnabled || notificationsEnabled) {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -82,7 +74,7 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
       pulse.start();
       return () => pulse.stop();
     }
-  }, [isLocationEnabled]);
+  }, [isLocationEnabled, notificationsEnabled]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -119,6 +111,13 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
           <View style={styles.warningMessage}>
             <Ionicons name="location-outline" size={16} color={COLORS.warning} />
             <Text style={styles.warningText}>Location services disabled</Text>
+          </View>
+        );
+      case 'notifications_disabled':
+        return (
+          <View style={styles.warningMessage}>
+            <Ionicons name="notifications-off-outline" size={16} color={COLORS.warning} />
+            <Text style={styles.warningText}>Enable notifications for alerts</Text>
           </View>
         );
       case 'all_nearby':
@@ -171,18 +170,35 @@ const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
           <Text style={styles.greeting}>{getGreeting()}</Text>
           <View style={styles.titleRow}>
             <Text style={styles.headerTitle}>Don't Forget</Text>
-            {isLocationEnabled && (
-              <Animated.View 
-                style={[
-                  styles.locationIndicator,
-                  { transform: [{ scale: pulseAnim }] }
-                ]}
-              >
-                <View style={styles.locationPulse}>
-                  <Ionicons name="location" size={16} color={COLORS.accent} />
-                </View>
-              </Animated.View>
-            )}
+            <View style={styles.indicatorsContainer}>
+              {/* Location Indicator */}
+              {isLocationEnabled && (
+                <Animated.View 
+                  style={[
+                    styles.indicator,
+                    { transform: [{ scale: pulseAnim }] }
+                  ]}
+                >
+                  <View style={styles.locationPulse}>
+                    <Ionicons name="location" size={14} color={COLORS.accent} />
+                  </View>
+                </Animated.View>
+              )}
+              
+              {/* Notification Indicator */}
+              {notificationsEnabled && (
+                <Animated.View 
+                  style={[
+                    styles.indicator,
+                    { transform: [{ scale: pulseAnim }] }
+                  ]}
+                >
+                  <View style={styles.notificationPulse}>
+                    <Ionicons name="notifications" size={14} color={COLORS.accent} />
+                  </View>
+                </Animated.View>
+              )}
+            </View>
           </View>
         </View>
 
@@ -288,13 +304,28 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     flex: 1,
   },
-  locationIndicator: {
-    marginLeft: 16,
+  indicatorsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  indicator: {
+    marginLeft: 4,
   },
   locationPulse: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(104, 247, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(104, 247, 11, 0.3)',
+  },
+  notificationPulse: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(104, 247, 11, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',

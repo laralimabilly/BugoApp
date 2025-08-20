@@ -5,9 +5,11 @@ import {
   Alert,
   StatusBar,
   Dimensions,
+  AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import Header from './components/Header';
 import ItemList from './components/ItemList';
@@ -16,6 +18,7 @@ import ItemModal from './components/ItemModal';
 import ItemDetails from './components/ItemDetails';
 import { COLORS } from './constants/colors';
 import { calculateDistance } from './utils/distance';
+import { NotificationManager } from './utils/notifications';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,7 +30,15 @@ const BugoApp = () => {
   const [showItemDetails, setShowItemDetails] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  
   const watchId = useRef(null);
+  const notificationListener = useRef();
+  const responseListener = useRef();
+  
+  // Track which items have been notified to prevent spam
+  const [notifiedItems, setNotifiedItems] = useState(new Set());
 
   // Request location permissions
   const requestLocationPermission = async () => {
@@ -37,6 +48,39 @@ const BugoApp = () => {
     } catch (error) {
       console.error('Permission error:', error);
       return false;
+    }
+  };
+
+  // Initialize notifications
+  const initializeNotifications = async () => {
+    try {
+      const hasPermission = await NotificationManager.requestPermissions();
+      setNotificationsEnabled(hasPermission);
+      
+      if (hasPermission) {
+        console.log('Notifications enabled');
+        
+        // Listen for notifications while app is running
+        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+          console.log('Notification received:', notification);
+        });
+
+        // Handle notification responses (when user taps notification)
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+          console.log('Notification response:', response);
+          const { data } = response.notification.request.content;
+          
+          // Handle different notification types
+          if (data.type === 'item_away' || data.type === 'multiple_items_away') {
+            // Could open item details or show main screen
+            console.log('User tapped away notification');
+          } else if (data.type === 'item_returned') {
+            console.log('User tapped return notification');
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
     }
   };
 
@@ -65,7 +109,7 @@ const BugoApp = () => {
       // Check alerts for initial position
       checkProximityAlerts(newLocation);
       
-      // Watch position changes with more frequent updates
+      // Watch position changes
       const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
@@ -83,7 +127,6 @@ const BugoApp = () => {
         }
       );
       
-      // Store subscription for cleanup
       watchId.current = subscription;
     } catch (error) {
       console.error('Location error:', error);
@@ -91,7 +134,7 @@ const BugoApp = () => {
     }
   };
 
-  // Check proximity alerts
+  // Enhanced proximity alerts with notifications
   const checkProximityAlerts = async (currentLoc) => {
     if (!currentLoc || items.length === 0) return;
 
@@ -115,58 +158,85 @@ const BugoApp = () => {
 
       console.log(`Item: ${item.name}, Distance: ${Math.round(distance)}m, Threshold: ${item.alertDistance}m, IsAway: ${item.isAway}`);
 
-      // Collect items that need alerts (moved beyond threshold and weren't already away)
-      if (distance > item.alertDistance && !item.isAway) {
-        console.log(`🚨 Adding ${item.name} to alert list - distance ${Math.round(distance)}m > threshold ${item.alertDistance}m`);
+      // Check if item moved beyond threshold and hasn't been notified
+      if (distance > item.alertDistance && !item.isAway && !notifiedItems.has(item.id)) {
+        console.log(`🚨 Adding ${item.name} to alert list`);
         itemsToAlert.push({
           ...item,
-          currentDistance: Math.round(distance)
+          currentDistance: distance
         });
       } 
-      // Collect items that returned within threshold
+      // Check if item returned within threshold
       else if (distance <= item.alertDistance && item.isAway) {
         console.log(`✅ User returned within range for ${item.name}`);
         itemsToReturn.push(item);
       }
     }
 
-    // Show single alert for all items that are now beyond threshold
+    // Handle away notifications
     if (itemsToAlert.length > 0) {
-      let alertTitle, alertMessage;
-      
-      if (itemsToAlert.length === 1) {
-        const item = itemsToAlert[0];
-        alertTitle = '⚠️ Don\'t Forget!';
-        alertMessage = `You're ${item.currentDistance}m away from your ${item.name}!`;
+      // Update notified items tracker
+      const newNotifiedItems = new Set(notifiedItems);
+      itemsToAlert.forEach(item => newNotifiedItems.add(item.id));
+      setNotifiedItems(newNotifiedItems);
+
+      if (notificationsEnabled) {
+        // Send push notification with vibration and sound
+        if (itemsToAlert.length === 1) {
+          const item = itemsToAlert[0];
+          await NotificationManager.scheduleItemAwayNotification(item, item.currentDistance);
+          NotificationManager.triggerVibration('away');
+        } else {
+          await NotificationManager.scheduleMultipleItemsNotification(itemsToAlert);
+          NotificationManager.triggerVibration('multiple');
+        }
       } else {
-        alertTitle = `⚠️ Don't Forget ${itemsToAlert.length} Items!`;
-        alertMessage = itemsToAlert
-          .map(item => `• ${item.name} (${item.currentDistance}m away)`)
-          .join('\n');
+        // Fallback to in-app alert if notifications disabled
+        let alertTitle, alertMessage;
+        
+        if (itemsToAlert.length === 1) {
+          const item = itemsToAlert[0];
+          alertTitle = '⚠️ Don\'t Forget!';
+          alertMessage = `You're ${Math.round(item.currentDistance)}m away from your ${item.name}!`;
+        } else {
+          alertTitle = `⚠️ Don't Forget ${itemsToAlert.length} Items!`;
+          alertMessage = itemsToAlert
+            .map(item => `• ${item.name} (${Math.round(item.currentDistance)}m away)`)
+            .join('\n');
+        }
+
+        Alert.alert(alertTitle, alertMessage, [{ text: 'OK', style: 'default' }]);
+        NotificationManager.triggerVibration('away');
       }
 
-      Alert.alert(alertTitle, alertMessage, [{ text: 'OK', style: 'default' }]);
-
-      // Update away status for all alerted items
+      // Update away status for alerted items
       const updatedItems = items.map(item => {
         const alertedItem = itemsToAlert.find(alertItem => alertItem.id === item.id);
-        if (alertedItem) {
-          return { ...item, isAway: true };
-        }
-        return item;
+        return alertedItem ? { ...item, isAway: true } : item;
       });
       setItems(updatedItems);
       await saveItems(updatedItems);
     }
 
-    // Update return status for items that came back within range
+    // Handle return notifications
     if (itemsToReturn.length > 0) {
+      // Remove from notified items when they return
+      const newNotifiedItems = new Set(notifiedItems);
+      itemsToReturn.forEach(item => newNotifiedItems.delete(item.id));
+      setNotifiedItems(newNotifiedItems);
+
+      if (notificationsEnabled) {
+        // Send return notifications (optional - might be too much)
+        for (const item of itemsToReturn) {
+          await NotificationManager.scheduleItemReturnedNotification(item);
+        }
+        NotificationManager.triggerVibration('returned');
+      }
+
+      // Update return status
       const updatedItems = items.map(item => {
         const returnedItem = itemsToReturn.find(returnItem => returnItem.id === item.id);
-        if (returnedItem) {
-          return { ...item, isAway: false };
-        }
-        return item;
+        return returnedItem ? { ...item, isAway: false } : item;
       });
       setItems(updatedItems);
       await saveItems(updatedItems);
@@ -188,20 +258,9 @@ const BugoApp = () => {
   // Save items to storage
   const saveItems = async (newItems) => {
     try {
-      // Validate items before saving
-      const validItems = newItems.filter(item => 
-        item.id && item.name && item.location && typeof item.alertDistance === 'number'
-      );
-      
-      if (validItems.length !== newItems.length) {
-        console.warn('Some items were invalid and filtered out during save');
-      }
-      
-      await AsyncStorage.setItem('dontForgetItems', JSON.stringify(validItems));
-      console.log(`Saved ${validItems.length} items to storage`);
+      await AsyncStorage.setItem('dontForgetItems', JSON.stringify(newItems));
     } catch (error) {
       console.error('Error saving items:', error);
-      throw error; // Re-throw to handle in calling function
     }
   };
 
@@ -211,69 +270,51 @@ const BugoApp = () => {
       Alert.alert('Error', 'Location not available. Please wait or check permissions.');
       return;
     }
-  
-    try {
-      let updatedItems;
+
+    let updatedItems;
+    
+    if (editingItem) {
+      // Update existing item and reset notification tracking
+      updatedItems = items.map(item =>
+        item.id === editingItem.id
+          ? { ...item, ...itemData, isAway: false }
+          : item
+      );
       
-      if (editingItem) {
-        // Update existing item - preserve original location and createdAt
-        updatedItems = items.map(item =>
-          item.id === editingItem.id
-            ? { 
-                ...item, 
-                ...itemData,
-                // Preserve these fields from original item
-                location: item.location,
-                createdAt: item.createdAt,
-                // Reset away status when item is edited (user might have changed alert distance)
-                isAway: false
-              }
-            : item
-        );
-        
-        console.log(`Updated item: ${editingItem.id}`, updatedItems.find(i => i.id === editingItem.id));
-      } else {
-        // Add new item
-        const newItem = {
-          id: Date.now().toString(),
-          ...itemData,
-          location: currentLocation,
-          createdAt: new Date().toISOString(),
-          isAway: false,
-        };
-        updatedItems = [...items, newItem];
-        
-        console.log('Added new item:', newItem);
-      }
-  
-      // Update state first
-      setItems(updatedItems);
-      
-      // Save to storage
-      await saveItems(updatedItems);
-      
-      // Force immediate proximity check with updated items
-      setTimeout(() => {
-        checkProximityAlerts(currentLocation, updatedItems);
-      }, 100);
-      
-      // Close modal and reset editing state
-      setShowItemModal(false);
-      setEditingItem(null);
-      
-      console.log('Item save completed successfully');
-      
-    } catch (error) {
-      console.error('Error saving item:', error);
-      Alert.alert('Error', 'Failed to save item. Please try again.');
+      // Reset notification for edited item
+      const newNotifiedItems = new Set(notifiedItems);
+      newNotifiedItems.delete(editingItem.id);
+      setNotifiedItems(newNotifiedItems);
+    } else {
+      // Add new item
+      const newItem = {
+        id: Date.now().toString(),
+        ...itemData,
+        location: currentLocation,
+        createdAt: new Date().toISOString(),
+        isAway: false,
+      };
+      updatedItems = [...items, newItem];
     }
+
+    setItems(updatedItems);
+    await saveItems(updatedItems);
+    await checkProximityAlerts(currentLocation);
+    
+    setShowItemModal(false);
+    setEditingItem(null);
   };
 
   // Delete item
-  const deleteItem = (itemId) => {
+  const deleteItem = async (itemId) => {
     const updatedItems = items.filter(item => item.id !== itemId);
     setItems(updatedItems);
-    saveItems(updatedItems);
+    await saveItems(updatedItems);
+    
+    // Remove from notification tracking
+    const newNotifiedItems = new Set(notifiedItems);
+    newNotifiedItems.delete(itemId);
+    setNotifiedItems(newNotifiedItems);
   };
 
   // Edit item
@@ -294,15 +335,39 @@ const BugoApp = () => {
     setShowItemModal(true);
   };
 
+  // Handle app state changes
+  const handleAppStateChange = (nextAppState) => {
+    console.log('App state changed:', appState, '->', nextAppState);
+    setAppState(nextAppState);
+    
+    // Clear notifications when app becomes active
+    if (appState.match(/inactive|background/) && nextAppState === 'active') {
+      console.log('App has come to the foreground');
+      // Optional: Clear all notifications when app opens
+      // NotificationManager.cancelAllNotifications();
+    }
+  };
+
   useEffect(() => {
     loadItems();
     initializeLocation();
+    initializeNotifications();
+
+    // Listen for app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      // Cleanup location watcher
+      // Cleanup
       if (watchId.current) {
         watchId.current.remove();
       }
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+      subscription?.remove();
     };
   }, []);
 
@@ -335,6 +400,7 @@ const BugoApp = () => {
         isLocationEnabled={isLocationEnabled}
         itemCount={items.length}
         items={items}
+        notificationsEnabled={notificationsEnabled}
       />
 
       <ItemList

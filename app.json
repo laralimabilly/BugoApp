@@ -1,29 +1,63 @@
 {
   "expo": {
     "name": "BugoApp",
-    "slug": "BugoApp",
+    "slug": "bugo-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2d2d2d"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "icon": "./assets/icon.png",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.dontforget",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to track your items and send proximity alerts when you move away from them.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs location access to track your items and send proximity alerts even when the app is in the background.",
+        "UIBackgroundModes": [
+          "location",
+          "background-processing"
+        ]
+      }
     },
     "android": {
+      "icon": "./assets/icon.png",
+      "package": "com.yourcompany.dontforget",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2d2d2d"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Don't Forget",
+      "shortName": "Don't Forget",
+      "description": "Never forget your important items with location-based reminders",
+      "backgroundColor": "#2d2d2d",
+      "themeColor": "#68f70b"
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#68f70b",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Don't Forget Alert"
     }
   }
 }
