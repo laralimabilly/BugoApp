@@ -15,6 +15,7 @@ import FloatingAddButton from './components/FloatingAddButton';
 import ItemModal from './components/ItemModal';
 import ItemDetails from './components/ItemDetails';
 import { COLORS } from './constants/colors';
+import { calculateDistance } from './utils/distance';
 
 const { width, height } = Dimensions.get('window');
 
@@ -90,22 +91,6 @@ const BugoApp = () => {
     }
   };
 
-  // Calculate distance between two points
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180;
-    const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c; // Distance in meters
-  };
-
   // Check proximity alerts
   const checkProximityAlerts = async (currentLoc) => {
     if (!currentLoc || items.length === 0) return;
@@ -163,24 +148,29 @@ const BugoApp = () => {
       Alert.alert(alertTitle, alertMessage, [{ text: 'OK', style: 'default' }]);
 
       // Update away status for all alerted items
-      for (const item of itemsToAlert) {
-        await updateItemAwayStatus(item.id, true);
-      }
+      const updatedItems = items.map(item => {
+        const alertedItem = itemsToAlert.find(alertItem => alertItem.id === item.id);
+        if (alertedItem) {
+          return { ...item, isAway: true };
+        }
+        return item;
+      });
+      setItems(updatedItems);
+      await saveItems(updatedItems);
     }
 
     // Update return status for items that came back within range
-    for (const item of itemsToReturn) {
-      await updateItemAwayStatus(item.id, false);
+    if (itemsToReturn.length > 0) {
+      const updatedItems = items.map(item => {
+        const returnedItem = itemsToReturn.find(returnItem => returnItem.id === item.id);
+        if (returnedItem) {
+          return { ...item, isAway: false };
+        }
+        return item;
+      });
+      setItems(updatedItems);
+      await saveItems(updatedItems);
     }
-  };
-
-  // Update item away status
-  const updateItemAwayStatus = async (itemId, isAway) => {
-    const updatedItems = items.map(item => 
-      item.id === itemId ? { ...item, isAway } : item
-    );
-    setItems(updatedItems);
-    await saveItems(updatedItems); // Persist the away status
   };
 
   // Load items from storage
@@ -198,49 +188,85 @@ const BugoApp = () => {
   // Save items to storage
   const saveItems = async (newItems) => {
     try {
-      await AsyncStorage.setItem('dontForgetItems', JSON.stringify(newItems));
+      // Validate items before saving
+      const validItems = newItems.filter(item => 
+        item.id && item.name && item.location && typeof item.alertDistance === 'number'
+      );
+      
+      if (validItems.length !== newItems.length) {
+        console.warn('Some items were invalid and filtered out during save');
+      }
+      
+      await AsyncStorage.setItem('dontForgetItems', JSON.stringify(validItems));
+      console.log(`Saved ${validItems.length} items to storage`);
     } catch (error) {
       console.error('Error saving items:', error);
+      throw error; // Re-throw to handle in calling function
     }
   };
 
-  // Add or update item - FIXED VERSION
+  // Add or update item
   const saveItem = async (itemData) => {
     if (!currentLocation) {
       Alert.alert('Error', 'Location not available. Please wait or check permissions.');
       return;
     }
-
-    let updatedItems;
-    
-    if (editingItem) {
-      // Update existing item
-      updatedItems = items.map(item =>
-        item.id === editingItem.id
-          ? { ...item, ...itemData }
-          : item
-      );
-    } else {
-      // Add new item
-      const newItem = {
-        id: Date.now().toString(),
-        ...itemData,
-        location: currentLocation,
-        createdAt: new Date().toISOString(),
-        isAway: false,
-      };
-      updatedItems = [...items, newItem];
+  
+    try {
+      let updatedItems;
+      
+      if (editingItem) {
+        // Update existing item - preserve original location and createdAt
+        updatedItems = items.map(item =>
+          item.id === editingItem.id
+            ? { 
+                ...item, 
+                ...itemData,
+                // Preserve these fields from original item
+                location: item.location,
+                createdAt: item.createdAt,
+                // Reset away status when item is edited (user might have changed alert distance)
+                isAway: false
+              }
+            : item
+        );
+        
+        console.log(`Updated item: ${editingItem.id}`, updatedItems.find(i => i.id === editingItem.id));
+      } else {
+        // Add new item
+        const newItem = {
+          id: Date.now().toString(),
+          ...itemData,
+          location: currentLocation,
+          createdAt: new Date().toISOString(),
+          isAway: false,
+        };
+        updatedItems = [...items, newItem];
+        
+        console.log('Added new item:', newItem);
+      }
+  
+      // Update state first
+      setItems(updatedItems);
+      
+      // Save to storage
+      await saveItems(updatedItems);
+      
+      // Force immediate proximity check with updated items
+      setTimeout(() => {
+        checkProximityAlerts(currentLocation, updatedItems);
+      }, 100);
+      
+      // Close modal and reset editing state
+      setShowItemModal(false);
+      setEditingItem(null);
+      
+      console.log('Item save completed successfully');
+      
+    } catch (error) {
+      console.error('Error saving item:', error);
+      Alert.alert('Error', 'Failed to save item. Please try again.');
     }
-
-    setItems(updatedItems);
-    await saveItems(updatedItems);
-    
-    // Immediately recalculate proximity for all items after saving
-    // This ensures the header updates with correct away status
-    await checkProximityAlerts(currentLocation);
-    
-    setShowItemModal(false);
-    setEditingItem(null);
   };
 
   // Delete item

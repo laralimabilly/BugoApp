@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,14 +7,45 @@ import { COLORS } from '../constants/colors';
 
 const { width, height } = Dimensions.get('window');
 
-const Header = ({ isLocationEnabled, itemCount, items = [] } = props) => {
+const Header = ({ isLocationEnabled, itemCount, items = [] }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(-50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Calculate items that are away
-  const awayItems = items.filter(item => item.isAway);
-  const nearbyItems = itemCount - awayItems.length;
+  // Memoize calculations to prevent unnecessary re-renders
+  const { awayItems, nearbyItems, statusMessage } = useMemo(() => {
+    const away = items.filter(item => item.isAway);
+    const nearby = itemCount - away.length;
+    
+    let message = '';
+    if (!isLocationEnabled) {
+      message = 'location_disabled';
+    } else if (away.length > 0) {
+      message = away.length === 1 
+        ? `Don't forget your ${away[0].name}!`
+        : `You're away from ${away.length} items`;
+    } else if (itemCount > 0) {
+      message = 'all_nearby';
+    } else {
+      message = 'no_items';
+    }
+    
+    return { 
+      awayItems: away, 
+      nearbyItems: nearby, 
+      statusMessage: message 
+    };
+  }, [items, itemCount, isLocationEnabled]);
+
+  // Log when header data changes (for debugging)
+  useEffect(() => {
+    console.log('Header updated:', {
+      totalItems: itemCount,
+      awayItems: awayItems.length,
+      nearbyItems,
+      isLocationEnabled
+    });
+  }, [itemCount, awayItems.length, nearbyItems, isLocationEnabled]);
 
   useEffect(() => {
     // Slide in animation
@@ -80,6 +111,39 @@ const Header = ({ isLocationEnabled, itemCount, items = [] } = props) => {
       </LinearGradient>
     </TouchableOpacity>
   );
+
+  const renderStatusMessage = () => {
+    switch (statusMessage) {
+      case 'location_disabled':
+        return (
+          <View style={styles.warningMessage}>
+            <Ionicons name="location-outline" size={16} color={COLORS.warning} />
+            <Text style={styles.warningText}>Location services disabled</Text>
+          </View>
+        );
+      case 'all_nearby':
+        return (
+          <View style={styles.successMessage}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.accent} />
+            <Text style={styles.successText}>All items are nearby</Text>
+          </View>
+        );
+      case 'no_items':
+        return (
+          <View style={styles.infoMessage}>
+            <Ionicons name="information-circle-outline" size={16} color={COLORS.textSecondary} />
+            <Text style={styles.infoText}>Tap + to add your first item</Text>
+          </View>
+        );
+      default:
+        return (
+          <View style={styles.alertMessage}>
+            <Ionicons name="alert-circle-outline" size={16} color={COLORS.warning} />
+            <Text style={styles.alertText}>{statusMessage}</Text>
+          </View>
+        );
+    }
+  };
 
   return (
     <View style={styles.header}>
@@ -160,32 +224,7 @@ const Header = ({ isLocationEnabled, itemCount, items = [] } = props) => {
             { opacity: fadeAnim }
           ]}
         >
-          {!isLocationEnabled ? (
-            <View style={styles.warningMessage}>
-              <Ionicons name="location-outline" size={16} color={COLORS.warning} />
-              <Text style={styles.warningText}>Location services disabled</Text>
-            </View>
-          ) : awayItems.length > 0 ? (
-            <View style={styles.alertMessage}>
-              <Ionicons name="alert-circle-outline" size={16} color={COLORS.warning} />
-              <Text style={styles.alertText}>
-                {awayItems.length === 1 
-                  ? `Don't forget your ${awayItems[0].name}!` 
-                  : `You're away from ${awayItems.length} items`
-                }
-              </Text>
-            </View>
-          ) : itemCount > 0 ? (
-            <View style={styles.successMessage}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.accent} />
-              <Text style={styles.successText}>All items are nearby</Text>
-            </View>
-          ) : (
-            <View style={styles.infoMessage}>
-              <Ionicons name="information-circle-outline" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.infoText}>Tap + to add your first item</Text>
-            </View>
-          )}
+          {renderStatusMessage()}
         </Animated.View>
       </Animated.View>
 

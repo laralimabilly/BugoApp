@@ -4,41 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { getIconName } from '../constants/icons';
+import { getDistanceText } from '../utils/distance';
 
 const ItemCard = ({ item, onPress, currentLocation }) => {
-  // Calculate distance to item
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180;
-    const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c; // Distance in meters
-  };
-
-  const getDistanceText = () => {
-    if (!currentLocation || !item.location) return 'Location unavailable';
-    
-    const distance = calculateDistance(
-      currentLocation.latitude,
-      currentLocation.longitude,
-      item.location.latitude,
-      item.location.longitude
-    );
-
-    if (distance < 1000) {
-      return `${Math.round(distance)}m`;
-    } else {
-      return `${(distance / 1000).toFixed(1)}km`;
-    }
-  };
-
   // Determine card style based on away status
   const getCardStyle = () => {
     if (item.isAway) {
@@ -88,7 +56,7 @@ const ItemCard = ({ item, onPress, currentLocation }) => {
               styles.distanceText,
               item.isAway && styles.distanceTextAway
             ]}>
-              {getDistanceText()}
+              {getDistanceText(currentLocation, item.location)}
             </Text>
             <Text style={styles.distanceTextSub}>away</Text>
           </View>

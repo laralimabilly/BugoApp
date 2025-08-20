@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { getIconName } from '../constants/icons';
+import { getDistanceText } from '../utils/distance';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,39 +28,6 @@ const ItemDetails = ({
   onDelete 
 }) => {
   const [locationAddress, setLocationAddress] = useState('Loading address...');
-
-  // Calculate distance to item
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180;
-    const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c; // Distance in meters
-  };
-
-  const getDistanceText = () => {
-    if (!currentLocation || !item?.location) return 'Location unavailable';
-    
-    const distance = calculateDistance(
-      currentLocation.latitude,
-      currentLocation.longitude,
-      item.location.latitude,
-      item.location.longitude
-    );
-
-    if (distance < 1000) {
-      return `${Math.round(distance)} meters away`;
-    } else {
-      return `${(distance / 1000).toFixed(1)} kilometers away`;
-    }
-  };
 
   // Fetch address using reverse geocoding
   const fetchAddress = async () => {
@@ -143,14 +111,6 @@ const ItemDetails = ({
               </TouchableOpacity>
             </View>
 
-            {/* <View style={styles.header}>
-              <TouchableOpacity onPress={onClose} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Item Details</Text>
-              <View style={styles.placeholder} />
-            </View> */}
-
             {/* Scrollable Content */}
             <ScrollView 
               style={styles.scrollContent}
@@ -168,7 +128,9 @@ const ItemDetails = ({
                 </View>
                 <View style={styles.overviewInfo}>
                   <Text style={styles.itemNameLarge}>{item.name}</Text>
-                  <Text style={styles.distanceTextLarge}>{getDistanceText()}</Text>
+                  <Text style={styles.distanceTextLarge}>
+                    {getDistanceText(currentLocation, item.location, true)}
+                  </Text>
                   {item.isAway && (
                     <View style={styles.awayBadge}>
                       <Ionicons name="warning" size={16} color={COLORS.warning} />
@@ -310,23 +272,6 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
-  // header: {
-  //   flexDirection: 'row',
-  //   justifyContent: 'space-between',
-  //   alignItems: 'center',
-  //   marginBottom: 24,
-  // },
-  // backButton: {
-  //   padding: 4,
-  // },
-  // headerTitle: {
-  //   fontSize: 18,
-  //   fontWeight: '600',
-  //   color: COLORS.text,
-  // },
-  // placeholder: {
-  //   width: 32,
-  // },
   scrollContent: {
     flex: 1,
   },
