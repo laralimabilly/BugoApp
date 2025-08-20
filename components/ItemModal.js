@@ -348,8 +348,11 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   cancelButton: {
     flex: 1,
@@ -368,6 +371,8 @@ const styles = StyleSheet.create({
   saveButton: {
     flex: 1,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
     overflow: 'hidden',
   },
   saveButtonGradient: {

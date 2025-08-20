@@ -9,7 +9,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
-
 import Header from './components/Header';
 import ItemList from './components/ItemList';
 import FloatingAddButton from './components/FloatingAddButton';
@@ -295,7 +294,7 @@ const BugoApp = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#2d2d2d', '#1a1a1a', '#2d2d2d']}
+        colors={['#1a1a1a', '#1a1a1a', '#2d2d2d']}
         style={styles.backgroundGradient}
       />
       
@@ -368,7 +367,7 @@ const styles = StyleSheet.create({
   bokehCircle: {
     position: 'absolute',
     borderRadius: 200,
-    opacity: 0.1,
+    opacity: 0.3,
   },
   bokeh1: {
     width: 120,
@@ -376,20 +375,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
     top: height * 0.1,
     right: -60,
+    opacity: .7
   },
   bokeh2: {
     width: 80,
     height: 80,
     backgroundColor: COLORS.accent,
-    top: height * 0.6,
+    top: height * 0.3,
     left: -40,
   },
   bokeh3: {
-    width: 100,
-    height: 100,
+    width: 30,
+    height: 30,
     backgroundColor: COLORS.accent,
-    bottom: height * 0.2,
-    right: width * 0.3,
+    top: height * 0.34,
+    right: width * 0.05,
   },
 });
 

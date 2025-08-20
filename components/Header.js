@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { COLORS } from '../constants/colors';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const Header = ({ isLocationEnabled, itemCount, items = [] } = props) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -84,11 +84,11 @@ const Header = ({ isLocationEnabled, itemCount, items = [] } = props) => {
   return (
     <View style={styles.header}>
       {/* Blur Background */}
-      <BlurView intensity={10} style={styles.blurBackground} />
+      <BlurView intensity={20} style={styles.blurBackground} />
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['rgba(104, 247, 11, 0.08)', 'transparent']}
+        colors={['#2d2d2d', 'transparent']}
         style={styles.headerGradient}
       />
       
@@ -207,7 +207,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     backgroundColor: 'rgba(45, 45, 45, 0.7)',
-    boxShadow: '5px 5px 10px rgba(0, 0, 0, 0.3)'
+    boxShadow: '0px 0px 4px 2px rgba(0, 0, 0, 0.3)',
+    zIndex: 1
   },
   blurBackground: {
     position: 'absolute',
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: height,
     zIndex: 1,
   },
   headerContent: {

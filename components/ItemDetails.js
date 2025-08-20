@@ -127,20 +127,29 @@ const ItemDetails = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.modalOverlay}>
+      <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <LinearGradient
             colors={['#2d2d2d', '#1a1a1a']}
             style={styles.modalGradient}
           >
             {/* Header */}
-            <View style={styles.header}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Item Details
+              </Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* <View style={styles.header}>
               <TouchableOpacity onPress={onClose} style={styles.backButton}>
                 <Ionicons name="arrow-back" size={24} color={COLORS.text} />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Item Details</Text>
               <View style={styles.placeholder} />
-            </View>
+            </View> */}
 
             {/* Scrollable Content */}
             <ScrollView 
@@ -241,7 +250,16 @@ const ItemDetails = ({
             </ScrollView>
 
             {/* Fixed Action Buttons */}
-            <View style={styles.actionButtons}>
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.deleteButton} 
+                onPress={handleDelete}
+              >
+                <View style={styles.deleteButtonContent}>
+                  <Ionicons name="trash-outline" size={20} color={COLORS.warning} />
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </View>
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.editButton} 
                 onPress={handleEdit}
@@ -254,20 +272,10 @@ const ItemDetails = ({
                   <Text style={styles.buttonText}>Edit Item</Text>
                 </LinearGradient>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.deleteButton} 
-                onPress={handleDelete}
-              >
-                <View style={styles.deleteButtonContent}>
-                  <Ionicons name="trash-outline" size={20} color={COLORS.warning} />
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </View>
-              </TouchableOpacity>
             </View>
           </LinearGradient>
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };
@@ -275,38 +283,50 @@ const ItemDetails = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContainer: {
-    flex: 1,
-    marginTop: 50,
+    height: height * 0.85,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
   },
   modalGradient: {
     flex: 1,
+    padding: 24,
   },
-  header: {
+  modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: COLORS.text,
   },
-  placeholder: {
-    width: 32,
+  closeButton: {
+    padding: 4,
   },
+  // header: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-between',
+  //   alignItems: 'center',
+  //   marginBottom: 24,
+  // },
+  // backButton: {
+  //   padding: 4,
+  // },
+  // headerTitle: {
+  //   fontSize: 18,
+  //   fontWeight: '600',
+  //   color: COLORS.text,
+  // },
+  // placeholder: {
+  //   width: 32,
+  // },
   scrollContent: {
     flex: 1,
   },
@@ -316,8 +336,8 @@ const styles = StyleSheet.create({
   overviewCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 24,
-    padding: 24,
+    marginVertical: 24,
+    padding: 16,
     backgroundColor: COLORS.glass,
     borderRadius: 20,
     borderWidth: 1,
@@ -363,11 +383,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   section: {
-    marginHorizontal: 24,
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 12,
@@ -414,7 +433,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  actionButtons: {
+  modalActions: {
     flexDirection: 'row',
     paddingHorizontal: 24,
     paddingVertical: 20,
