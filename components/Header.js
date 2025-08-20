@@ -1,23 +1,34 @@
+// components/Header.js - Updated with premium features
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { COLORS } from '../constants/colors';
+import { FREE_ITEM_LIMIT } from '../utils/premium';
 
 const { width, height } = Dimensions.get('window');
 
-const Header = ({ isLocationEnabled, itemCount, items = [], notificationsEnabled = false }) => {
+const Header = ({ 
+  isLocationEnabled, 
+  itemCount, 
+  items = [], 
+  notificationsEnabled = false,
+  isPremium = false,
+  onUpgradePress 
+}) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(-50)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Memoize calculations to prevent unnecessary re-renders
-  const { awayItems, nearbyItems, statusMessage } = useMemo(() => {
+  const { awayItems, nearbyItems, statusMessage, showUpgradePrompt } = useMemo(() => {
     const away = items.filter(item => item.isAway);
     const nearby = itemCount - away.length;
     
     let message = '';
+    let showUpgrade = false;
+    
     if (!isLocationEnabled) {
       message = 'location_disabled';
     } else if (!notificationsEnabled) {
@@ -31,13 +42,19 @@ const Header = ({ isLocationEnabled, itemCount, items = [], notificationsEnabled
     } else {
       message = 'no_items';
     }
+
+    // Show upgrade prompt for free users approaching limit
+    if (!isPremium && itemCount >= FREE_ITEM_LIMIT - 1) {
+      showUpgrade = true;
+    }
     
     return { 
       awayItems: away, 
       nearbyItems: nearby, 
-      statusMessage: message 
+      statusMessage: message,
+      showUpgradePrompt: showUpgrade
     };
-  }, [items, itemCount, isLocationEnabled, notificationsEnabled]);
+  }, [items, itemCount, isLocationEnabled, notificationsEnabled, isPremium]);
 
   useEffect(() => {
     // Slide in animation
@@ -167,7 +184,15 @@ const Header = ({ isLocationEnabled, itemCount, items = [], notificationsEnabled
       >
         {/* Title Section */}
         <View style={styles.titleSection}>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <View style={styles.greetingRow}>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            {isPremium && (
+              <View style={styles.premiumBadge}>
+                <Ionicons name="star" size={14} color={COLORS.primary} />
+                <Text style={styles.premiumText}>Premium</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.titleRow}>
             <Text style={styles.headerTitle}>Don't Forget</Text>
             <View style={styles.indicatorsContainer}>
@@ -218,9 +243,10 @@ const Header = ({ isLocationEnabled, itemCount, items = [], notificationsEnabled
           
           <StatusCard
             icon="stats-chart-outline"
-            value={itemCount}
-            label="total tracked"
-            color={COLORS.textSecondary}
+            value={isPremium ? itemCount : `${itemCount}/${FREE_ITEM_LIMIT}`}
+            label={isPremium ? "total tracked" : "tracked items"}
+            color={!isPremium && itemCount >= FREE_ITEM_LIMIT ? COLORS.warning : COLORS.textSecondary}
+            onPress={!isPremium && itemCount >= FREE_ITEM_LIMIT ? onUpgradePress : undefined}
           />
 
           {awayItems.length > 0 && (
@@ -232,6 +258,32 @@ const Header = ({ isLocationEnabled, itemCount, items = [], notificationsEnabled
             />
           )}
         </Animated.View>
+
+        {/* Upgrade Prompt for Free Users */}
+        {showUpgradePrompt && (
+          <Animated.View 
+            style={[
+              styles.upgradePrompt,
+              { opacity: fadeAnim }
+            ]}
+          >
+            <TouchableOpacity 
+              style={styles.upgradeButton}
+              onPress={onUpgradePress}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[COLORS.accent, '#4dd100']}
+                style={styles.upgradeGradient}
+              >
+                <Ionicons name="star" size={16} color={COLORS.primary} />
+                <Text style={styles.upgradeButtonText}>
+                  Upgrade to Premium - Unlimited Items!
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {/* Status Message */}
         <Animated.View 
@@ -287,11 +339,30 @@ const styles = StyleSheet.create({
   titleSection: {
     marginBottom: 24,
   },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   greeting: {
     fontSize: 16,
     color: COLORS.textSecondary,
-    marginBottom: 4,
     fontWeight: '500',
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  premiumText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginLeft: 4,
   },
   titleRow: {
     flexDirection: 'row',
@@ -372,6 +443,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     fontWeight: '500',
+  },
+  upgradePrompt: {
+    marginBottom: 16,
+  },
+  upgradeButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  upgradeGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  upgradeButtonText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   statusMessage: {
     alignItems: 'center',

@@ -1,3 +1,4 @@
+// App.js - Updated with premium features and ads
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -16,9 +17,13 @@ import ItemList from './components/ItemList';
 import FloatingAddButton from './components/FloatingAddButton';
 import ItemModal from './components/ItemModal';
 import ItemDetails from './components/ItemDetails';
+import AdBanner from './components/AdBanner';
+import PremiumUpgradeModal from './components/PremiumUpgradeModal';
 import { COLORS } from './constants/colors';
 import { calculateDistance } from './utils/distance';
 import { NotificationManager } from './utils/notifications';
+import { PremiumManager, FREE_ITEM_LIMIT } from './utils/premium';
+import { InterstitialAdManager } from './components/AdInterstitial';
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,12 +38,51 @@ const BugoApp = () => {
   const [appState, setAppState] = useState(AppState.currentState);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
+  // Premium features state
+  const [isPremium, setIsPremium] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [itemsAddedCount, setItemsAddedCount] = useState(0); // Track for interstitial ads
+  
   const watchId = useRef(null);
   const notificationListener = useRef();
   const responseListener = useRef();
   
   // Track which items have been notified to prevent spam
   const [notifiedItems, setNotifiedItems] = useState(new Set());
+
+  // Initialize premium status and ads
+  useEffect(() => {
+    const initializePremiumAndAds = async () => {
+      // Check premium status
+      const premiumStatus = await PremiumManager.isPremiumUser();
+      setIsPremium(premiumStatus);
+      
+      // Initialize ads only for free users
+      if (!premiumStatus) {
+        await InterstitialAdManager.initialize();
+      }
+    };
+    
+    initializePremiumAndAds();
+  }, []);
+
+  // Check if user can add more items (free version limit)
+  const canAddMoreItems = () => {
+    if (isPremium) return true;
+    return items.length < FREE_ITEM_LIMIT;
+  };
+
+  // Show upgrade modal for item limit
+  const handleItemLimitReached = () => {
+    Alert.alert(
+      'Upgrade to Premium',
+      PremiumManager.getItemLimitMessage(items.length),
+      [
+        { text: 'Maybe Later', style: 'cancel' },
+        { text: 'Upgrade Now', onPress: () => setShowUpgradeModal(true) }
+      ]
+    );
+  };
 
   // Request location permissions
   const requestLocationPermission = async () => {
@@ -72,7 +116,6 @@ const BugoApp = () => {
           
           // Handle different notification types
           if (data.type === 'item_away' || data.type === 'multiple_items_away') {
-            // Could open item details or show main screen
             console.log('User tapped away notification');
           } else if (data.type === 'item_returned') {
             console.log('User tapped return notification');
@@ -225,8 +268,7 @@ const BugoApp = () => {
       itemsToReturn.forEach(item => newNotifiedItems.delete(item.id));
       setNotifiedItems(newNotifiedItems);
 
-      if (notificationsEnabled) {
-        // Send return notifications (optional - might be too much)
+      if (notificationsEnabled && isPremium) { // Only send return notifications for premium users
         for (const item of itemsToReturn) {
           await NotificationManager.scheduleItemReturnedNotification(item);
         }
@@ -264,13 +306,37 @@ const BugoApp = () => {
     }
   };
 
-  // Add or update item
+  // Add or update item with premium checks
   const saveItem = async (itemData) => {
     if (!currentLocation) {
       Alert.alert('Error', 'Location not available. Please wait or check permissions.');
       return;
     }
 
+    // Check item limit for free users
+    if (!editingItem && !isPremium && !canAddMoreItems()) {
+      handleItemLimitReached();
+      return;
+    }
+
+    // Check custom alert distance (premium feature)
+    const standardDistances = [25, 50, 100, 200];
+    if (!isPremium && !standardDistances.includes(itemData.alertDistance)) {
+      Alert.alert(
+        'Premium Feature',
+        'Custom alert distances are a premium feature. Upgrade to set any distance you want!',
+        [
+          { text: 'Use 50m', onPress: () => saveItemWithDistance({ ...itemData, alertDistance: 50 }) },
+          { text: 'Upgrade', onPress: () => setShowUpgradeModal(true) }
+        ]
+      );
+      return;
+    }
+
+    await saveItemWithDistance(itemData);
+  };
+
+  const saveItemWithDistance = async (itemData) => {
     let updatedItems;
     
     if (editingItem) {
@@ -295,6 +361,19 @@ const BugoApp = () => {
         isAway: false,
       };
       updatedItems = [...items, newItem];
+      
+      // Track items added for interstitial ad timing (free users only)
+      if (!isPremium) {
+        const newCount = itemsAddedCount + 1;
+        setItemsAddedCount(newCount);
+        
+        // Show interstitial ad after 3rd item
+        if (newCount === 3) {
+          setTimeout(() => {
+            InterstitialAdManager.showAd();
+          }, 1000); // Delay to let modal close first
+        }
+      }
     }
 
     setItems(updatedItems);
@@ -329,10 +408,21 @@ const BugoApp = () => {
     setShowItemDetails(true);
   };
 
-  // Open add modal
+  // Open add modal with premium checks
   const openAddModal = () => {
+    if (!isPremium && !canAddMoreItems()) {
+      handleItemLimitReached();
+      return;
+    }
+    
     setEditingItem(null);
     setShowItemModal(true);
+  };
+
+  // Handle premium upgrade success
+  const handleUpgradeSuccess = async () => {
+    setIsPremium(true);
+    // Optionally refresh the app state or show celebration
   };
 
   // Handle app state changes
@@ -343,8 +433,6 @@ const BugoApp = () => {
     // Clear notifications when app becomes active
     if (appState.match(/inactive|background/) && nextAppState === 'active') {
       console.log('App has come to the foreground');
-      // Optional: Clear all notifications when app opens
-      // NotificationManager.cancelAllNotifications();
     }
   };
 
@@ -401,17 +489,27 @@ const BugoApp = () => {
         itemCount={items.length}
         items={items}
         notificationsEnabled={notificationsEnabled}
+        isPremium={isPremium}
+        onUpgradePress={() => setShowUpgradeModal(true)}
       />
+
+      {/* Ad Banner - Only show for free users */}
+      {!isPremium && (
+        <AdBanner style={styles.adBanner} />
+      )}
 
       <ItemList
         items={items}
         onItemPress={showItemDetailsModal}
         currentLocation={currentLocation}
+        isPremium={isPremium}
       />
 
       <FloatingAddButton 
         onPress={openAddModal}
         disabled={!currentLocation}
+        isPremium={isPremium}
+        canAddMore={canAddMoreItems()}
       />
 
       <ItemModal
@@ -422,6 +520,7 @@ const BugoApp = () => {
         }}
         onSave={saveItem}
         editingItem={editingItem}
+        isPremium={isPremium}
       />
 
       <ItemDetails
@@ -434,6 +533,13 @@ const BugoApp = () => {
         currentLocation={currentLocation}
         onEdit={editItem}
         onDelete={deleteItem}
+        isPremium={isPremium}
+      />
+
+      <PremiumUpgradeModal
+        visible={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        onUpgradeSuccess={handleUpgradeSuccess}
       />
     </View>
   );
@@ -482,6 +588,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
     top: height * 0.34,
     right: width * 0.05,
+  },
+  adBanner: {
+    marginTop: -12,
+    marginBottom: 12,
   },
 });
 
