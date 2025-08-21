@@ -58,6 +58,19 @@
       "color": "#68f70b",
       "androidMode": "default",
       "androidCollapsedTitle": "Don't Forget Alert"
-    }
+    },
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "node_modules/@expo-google-fonts/fredoka/400Regular/Fredoka_400Regular.ttf",
+            "node_modules/@expo-google-fonts/fredoka/500Medium/Fredoka_500Medium.ttf",
+            "node_modules/@expo-google-fonts/fredoka/600SemiBold/Fredoka_600SemiBold.ttf",
+            "node_modules/@expo-google-fonts/fredoka/700Bold/Fredoka_700Bold.ttf"
+          ]
+        }
+      ]
+    ]
   }
 }

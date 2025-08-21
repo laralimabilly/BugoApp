@@ -1,5 +1,6 @@
 import React from 'react';
-import { FlatList, View, Text, StyleSheet } from 'react-native';
+import { FlatList, View, StyleSheet } from 'react-native';
+import Text from './CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import ItemCard from './ItemCard';
 import { COLORS } from '../constants/colors';

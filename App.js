@@ -19,6 +19,12 @@ import ItemDetails from './components/ItemDetails';
 import { COLORS } from './constants/colors';
 import { calculateDistance } from './utils/distance';
 import { NotificationManager } from './utils/notifications';
+import { useFonts } from '@expo-google-fonts/fredoka/useFonts';
+import { Fredoka_300Light } from '@expo-google-fonts/fredoka/300Light';
+import { Fredoka_400Regular } from '@expo-google-fonts/fredoka/400Regular';
+import { Fredoka_500Medium } from '@expo-google-fonts/fredoka/500Medium';
+import { Fredoka_600SemiBold } from '@expo-google-fonts/fredoka/600SemiBold';
+import { Fredoka_700Bold } from '@expo-google-fonts/fredoka/700Bold';
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,6 +45,15 @@ const BugoApp = () => {
   
   // Track which items have been notified to prevent spam
   const [notifiedItems, setNotifiedItems] = useState(new Set());
+
+  //Load Fonts
+  let [fontsLoaded] = useFonts({
+    Fredoka_300Light, 
+    Fredoka_400Regular, 
+    Fredoka_500Medium, 
+    Fredoka_600SemiBold, 
+    Fredoka_700Bold
+  });
 
   // Request location permissions
   const requestLocationPermission = async () => {
@@ -378,6 +393,9 @@ const BugoApp = () => {
       checkProximityAlerts(currentLocation);
     }
   }, [items, currentLocation]);
+
+  if(!fontsLoaded)
+    return null;
 
   return (
     <View style={styles.container}>
