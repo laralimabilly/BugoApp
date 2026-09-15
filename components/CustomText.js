@@ -2,7 +2,7 @@ import React from 'react';
 import { Text as RNText } from 'react-native';
 import { FONTS } from '../constants/typography';
 
-const CustomText = ({ style, weight = 'regular', ...props }) => {
+const CustomText = ({ style, weight = 'regular', color = '#ffffff', ...props }) => {
   const getFontFamily = () => {
     switch (weight) {
       case 'medium':
@@ -18,7 +18,7 @@ const CustomText = ({ style, weight = 'regular', ...props }) => {
 
   const defaultStyle = {
     fontFamily: getFontFamily(),
-    color: '#ffffff', // Your default text color
+    color: color, // Your default text color
   };
 
   return (

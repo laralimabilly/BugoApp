@@ -16,6 +16,8 @@ import ItemList from './components/ItemList';
 import FloatingAddButton from './components/FloatingAddButton';
 import ItemModal from './components/ItemModal';
 import ItemDetails from './components/ItemDetails';
+import NavBar from './components/NavBar';
+import SettingsScreen from './components/SettingsScreen';
 import { COLORS } from './constants/colors';
 import { calculateDistance } from './utils/distance';
 import { NotificationManager } from './utils/notifications';
@@ -38,6 +40,10 @@ const BugoApp = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [appState, setAppState] = useState(AppState.currentState);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [activeScreen, setActiveScreen] = useState('home');
+  const [userPreferences, setUserPreferences] = useState({
+    returnNotificationsEnabled: true,
+  });
   
   const watchId = useRef(null);
   const notificationListener = useRef();
@@ -54,6 +60,19 @@ const BugoApp = () => {
     Fredoka_600SemiBold, 
     Fredoka_700Bold
   });
+
+  // Load user preferences
+  const loadUserPreferences = async () => {
+    try {
+      const savedPrefs = await AsyncStorage.getItem('userPreferences');
+      if (savedPrefs) {
+        const prefs = JSON.parse(savedPrefs);
+        setUserPreferences(prefs);
+      }
+    } catch (error) {
+      console.error('Error loading user preferences:', error);
+    }
+  };
 
   // Request location permissions
   const requestLocationPermission = async () => {
@@ -89,8 +108,10 @@ const BugoApp = () => {
           if (data.type === 'item_away' || data.type === 'multiple_items_away') {
             // Could open item details or show main screen
             console.log('User tapped away notification');
+            setActiveScreen('home');
           } else if (data.type === 'item_returned') {
             console.log('User tapped return notification');
+            setActiveScreen('home');
           }
         });
       }
@@ -240,8 +261,8 @@ const BugoApp = () => {
       itemsToReturn.forEach(item => newNotifiedItems.delete(item.id));
       setNotifiedItems(newNotifiedItems);
 
-      if (notificationsEnabled) {
-        // Send return notifications (optional - might be too much)
+      // Only send return notifications if user has enabled them
+      if (notificationsEnabled && userPreferences.returnNotificationsEnabled) {
         for (const item of itemsToReturn) {
           await NotificationManager.scheduleItemReturnedNotification(item);
         }
@@ -350,6 +371,11 @@ const BugoApp = () => {
     setShowItemModal(true);
   };
 
+  // Handle screen navigation
+  const handleScreenChange = (screen) => {
+    setActiveScreen(screen);
+  };
+
   // Handle app state changes
   const handleAppStateChange = (nextAppState) => {
     console.log('App state changed:', appState, '->', nextAppState);
@@ -365,6 +391,7 @@ const BugoApp = () => {
 
   useEffect(() => {
     loadItems();
+    loadUserPreferences();
     initializeLocation();
     initializeNotifications();
 
@@ -394,8 +421,35 @@ const BugoApp = () => {
     }
   }, [items, currentLocation]);
 
+  // Update preferences when they change
+  useEffect(() => {
+    if (currentLocation && items.length > 0) {
+      checkProximityAlerts(currentLocation);
+    }
+  }, [userPreferences]);
+
   if(!fontsLoaded)
     return null;
+
+  const renderHomeScreen = () => (
+    <>
+    {/* <View style={styles.homeContainer}> */}
+      <Header 
+        isLocationEnabled={isLocationEnabled}
+        itemCount={items.length}
+        items={items}
+        notificationsEnabled={notificationsEnabled}
+      />
+
+      <ItemList
+        items={items}
+        onItemPress={showItemDetailsModal}
+        currentLocation={currentLocation}
+      />
+
+    {/* </View> */}
+    </>
+  );
 
   return (
     <View style={styles.container}>
@@ -414,17 +468,13 @@ const BugoApp = () => {
         <View style={[styles.bokehCircle, styles.bokeh3]} />
       </View>
 
-      <Header 
-        isLocationEnabled={isLocationEnabled}
-        itemCount={items.length}
-        items={items}
-        notificationsEnabled={notificationsEnabled}
-      />
+      {/* Screen Content */}
+      {activeScreen === 'home' ? renderHomeScreen() : <SettingsScreen />}
 
-      <ItemList
-        items={items}
-        onItemPress={showItemDetailsModal}
-        currentLocation={currentLocation}
+      {/* Navigation Bar */}
+      <NavBar 
+        activeScreen={activeScreen}
+        onScreenChange={handleScreenChange}
       />
 
       <FloatingAddButton 
@@ -432,6 +482,7 @@ const BugoApp = () => {
         disabled={!currentLocation}
       />
 
+      {/* Modals */}
       <ItemModal
         visible={showItemModal}
         onClose={() => {
@@ -468,6 +519,14 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: height,
+  },
+  homeContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: height,
+    width: width
   },
   bokehContainer: {
     position: 'absolute',

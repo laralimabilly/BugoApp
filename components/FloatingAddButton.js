@@ -26,7 +26,8 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
     bottom: 30,
-    right: 24,
+    // right: '50%',
+    // transform: 'translateX(50%)',
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -38,6 +39,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 4.65,
     elevation: 8,
+    zIndex: 101
   },
   gradient: {
     width: 80,

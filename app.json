@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#2d2d2d"
     },
@@ -54,7 +54,7 @@
       "themeColor": "#68f70b"
     },
     "notification": {
-      "icon": "./assets/notification-icon.png",
+      "icon": "./assets/icon.png",
       "color": "#68f70b",
       "androidMode": "default",
       "androidCollapsedTitle": "Don't Forget Alert"

@@ -1,9 +1,11 @@
 import React from 'react';
-import { FlatList, View, StyleSheet } from 'react-native';
+import { FlatList, View, StyleSheet, Dimensions } from 'react-native';
 import Text from './CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import ItemCard from './ItemCard';
 import { COLORS } from '../constants/colors';
+
+const { width, height } = Dimensions.get('window');
 
 const ItemList = ({ items, onItemPress, currentLocation }) => {
   const renderItem = ({ item }) => (
@@ -38,7 +40,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 24,
     paddingBottom: 100, // Extra space for floating button
-    paddingTop: 24
+    paddingTop: 24,
   },
   emptyContainer: {
     alignItems: 'center',
