@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Animated, TouchableOpacity, Dimensions } from 'react-native';
-import Text from './CustomText';
+import Text from '../../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { COLORS } from '../constants/colors';
-import { FONTS } from '../constants/typography';
+import { COLORS } from '../../../constants/colors';
+import { FONTS } from '../../../constants/typography';
 
 const { width, height } = Dimensions.get('window');
 

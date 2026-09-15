@@ -1,8 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
+import { COLORS } from '../../../constants/colors';
 
 const FloatingAddButton = ({ onPress, disabled }) => {
   return (
@@ -26,8 +26,8 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
     bottom: 30,
-    // right: '50%',
-    // transform: 'translateX(50%)',
+    left: '50%',
+    transform: [{ translateX: -40 }], // center horizontally (half of width)
     width: 80,
     height: 80,
     borderRadius: 40,

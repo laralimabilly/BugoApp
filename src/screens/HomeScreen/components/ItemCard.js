@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import Text from './CustomText';
+import Text from '../../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
-import { getIconName } from '../constants/icons';
-import { getDistanceText } from '../utils/distance';
+import { COLORS } from '../../../constants/colors';
+import { getIconName } from '../../../constants/icons';
+import { getDistanceText } from '../../../utils/distance';
 
 const ItemCard = ({ item, onPress, currentLocation }) => {
   // Determine card style based on away status

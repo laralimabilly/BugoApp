@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   StyleSheet,
-  StatusBar,
   Dimensions,
   ScrollView,
   TouchableOpacity,
@@ -12,52 +11,20 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Text from './CustomText';
-import { COLORS } from '../constants/colors';
-import { FONTS } from '../constants/typography';
+import Text from '../../components/CustomText';
+import ScreenLayout from '../../components/ScreenLayout';
+import { COLORS } from '../../constants/colors';
+import { FONTS } from '../../constants/typography';
+import { useUserPreferences } from '../../hooks/useUserPreferences';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
-const SettingsScreen = () => {
-  const [returnNotificationsEnabled, setReturnNotificationsEnabled] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+const SettingsScreen = ({ activeScreen, onScreenChange }) => {
+  const { preferences, loading, updatePreferences } = useUserPreferences();
+  const returnNotificationsEnabled = preferences.returnNotificationsEnabled;
 
-  // Load preferences from storage
-  const loadPreferences = async () => {
-    try {
-      const savedPrefs = await AsyncStorage.getItem('userPreferences');
-      if (savedPrefs) {
-        const prefs = JSON.parse(savedPrefs);
-        setReturnNotificationsEnabled(prefs.returnNotificationsEnabled ?? true);
-      }
-    } catch (error) {
-      console.error('Error loading preferences:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Save preferences to storage
-  const savePreferences = async (newPrefs) => {
-    try {
-      const currentPrefs = await AsyncStorage.getItem('userPreferences');
-      const prefs = currentPrefs ? JSON.parse(currentPrefs) : {};
-      
-      const updatedPrefs = { ...prefs, ...newPrefs };
-      await AsyncStorage.setItem('userPreferences', JSON.stringify(updatedPrefs));
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-    }
-  };
-
-  useEffect(() => {
-    loadPreferences();
-  }, []);
-
-  const handleReturnNotificationsToggle = async (value) => {
-    setReturnNotificationsEnabled(value);
-    await savePreferences({ returnNotificationsEnabled: value });
+  const handleReturnNotificationsToggle = (value) => {
+    updatePreferences({ returnNotificationsEnabled: value });
   };
 
   const openPrivacyPolicy = () => {
@@ -88,8 +55,8 @@ const SettingsScreen = () => {
   );
 
   const SettingsRow = ({ icon, title, subtitle, rightComponent, onPress, showArrow = false }) => (
-    <TouchableOpacity 
-      style={styles.settingsRow} 
+    <TouchableOpacity
+      style={styles.settingsRow}
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
@@ -107,10 +74,10 @@ const SettingsScreen = () => {
       <View style={styles.settingsRowRight}>
         {rightComponent}
         {showArrow && (
-          <Ionicons 
-            name="chevron-forward" 
-            size={20} 
-            color={COLORS.textSecondary} 
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={COLORS.textSecondary}
             style={styles.arrowIcon}
           />
         )}
@@ -118,35 +85,18 @@ const SettingsScreen = () => {
     </TouchableOpacity>
   );
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <LinearGradient
-          colors={['#1a1a1a', '#1a1a1a', '#2d2d2d']}
-          style={styles.backgroundGradient}
-        />
-        <Text style={styles.loadingText}>Loading settings...</Text>
-      </View>
+      <ScreenLayout activeScreen={activeScreen} onScreenChange={onScreenChange}>
+        <View style={styles.loadingWrapper}>
+          <Text style={styles.loadingText}>Loading settings...</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} /> */}
-      
-      {/* Background Gradient */}
-      <LinearGradient
-        colors={['#1a1a1a', '#1a1a1a', '#2d2d2d']}
-        style={styles.backgroundGradient}
-      />
-      
-      {/* Bokeh Background Elements */}
-      <View style={styles.bokehContainer}>
-        <View style={[styles.bokehCircle, styles.bokeh1]} />
-        <View style={[styles.bokehCircle, styles.bokeh2]} />
-        <View style={[styles.bokehCircle, styles.bokeh3]} />
-      </View>
-
+    <ScreenLayout activeScreen={activeScreen} onScreenChange={onScreenChange}>
       {/* Header */}
       <View style={styles.header}>
         <LinearGradient
@@ -160,7 +110,7 @@ const SettingsScreen = () => {
       </View>
 
       {/* Content */}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -177,9 +127,9 @@ const SettingsScreen = () => {
                 <Switch
                   value={returnNotificationsEnabled}
                   onValueChange={handleReturnNotificationsToggle}
-                  trackColor={{ 
-                    false: 'rgba(255, 255, 255, 0.2)', 
-                    true: 'rgba(104, 247, 11, 0.3)' 
+                  trackColor={{
+                    false: 'rgba(255, 255, 255, 0.2)',
+                    true: 'rgba(104, 247, 11, 0.3)'
                   }}
                   thumbColor={returnNotificationsEnabled ? COLORS.accent : '#f4f3f4'}
                   ios_backgroundColor="rgba(255, 255, 255, 0.2)"
@@ -221,64 +171,20 @@ const SettingsScreen = () => {
         {/* Additional spacing for navbar */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
-    </View>
+    </ScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-  },
-  loadingContainer: {
+  loadingWrapper: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
   },
   loadingText: {
     fontSize: 16,
     color: COLORS.textSecondary,
     fontFamily: FONTS.regular,
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: height,
-  },
-  bokehContainer: {
-    position: 'absolute',
-    width: width,
-    height: height,
-  },
-  bokehCircle: {
-    position: 'absolute',
-    borderRadius: 200,
-    opacity: 0.3,
-  },
-  bokeh1: {
-    width: 120,
-    height: 120,
-    backgroundColor: COLORS.accent,
-    top: height * 0.1,
-    right: -60,
-    opacity: 0.7,
-  },
-  bokeh2: {
-    width: 80,
-    height: 80,
-    backgroundColor: COLORS.accent,
-    top: height * 0.3,
-    left: -40,
-  },
-  bokeh3: {
-    width: 30,
-    height: 30,
-    backgroundColor: COLORS.accent,
-    top: height * 0.34,
-    right: width * 0.05,
   },
   header: {
     paddingTop: 60,

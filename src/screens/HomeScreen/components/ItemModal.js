@@ -10,13 +10,13 @@ import {
   Dimensions,
   FlatList,
 } from 'react-native';
-import Text from './CustomText';
+import Text from '../../../components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
-import { ITEM_ICONS, getIconName } from '../constants/icons';
+import { COLORS } from '../../../constants/colors';
+import { ITEM_ICONS, getIconName } from '../../../constants/icons';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 const ItemModal = ({ visible, onClose, onSave, editingItem }) => {
   const [name, setName] = useState('');

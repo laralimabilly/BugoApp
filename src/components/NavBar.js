@@ -16,16 +16,7 @@ const NavBar = ({ activeScreen, onScreenChange }) => {
         onPress={onPress}
         activeOpacity={0.8}
         >
-            {/* {isActive && (
-                <LinearGradient
-                colors={['rgba(104, 247, 11, 0.2)', 'rgba(104, 247, 11, 0.1)']}
-                style={styles.activeBackground}
-                />
-            )} */}
-            <View style={[
-                styles.iconContainer,
-                isActive && styles.iconContainerActive
-            ]}>
+            <View style={styles.iconContainer}>
                 <Ionicons
                 name={icon}
                 size={24}
@@ -107,16 +98,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 5,
   },
-  activeBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: 'rgba(104, 247, 11, 0.3)',
-  },
   iconContainer: {
     width: 48,
     height: 48,
@@ -124,9 +105,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-  },
-  iconContainerActive: {
-    // backgroundColor: 'rgba(104, 247, 11, 0.1)',
   },
 });
 
